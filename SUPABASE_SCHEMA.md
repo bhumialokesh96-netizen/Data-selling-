@@ -1,23 +1,25 @@
 # Supabase Database Schema for RewardHub
 
-This document describes the complete database schema required for the RewardHub application.
+This document describes the complete database schema required for the RewardHub application with phone-based authentication.
 
 ## Tables
 
 ### 1. profiles
-Stores user profile information linked to Supabase Auth.
+Stores user profile information linked to Supabase Auth with phone-based authentication.
 
 ```sql
 CREATE TABLE profiles (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT NOT NULL,
+    phone_number TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
 **Columns:**
 - `user_id`: UUID - Primary key, references auth.users
-- `email`: TEXT - User's email address
+- `phone_number`: TEXT - User's phone number (unique)
+- `password`: TEXT - Bcrypt hashed password
 - `created_at`: TIMESTAMP - Account creation timestamp
 
 ### 2. wallets
@@ -96,6 +98,12 @@ CREATE POLICY "Users can view their own profile"
 CREATE POLICY "Users can insert their own profile"
     ON profiles FOR INSERT
     WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own profile
+CREATE POLICY "Users can update their own profile"
+    ON profiles FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 ```
 
 ### wallets table
@@ -109,6 +117,12 @@ CREATE POLICY "Users can view their own wallet"
 -- Users can insert their own wallet
 CREATE POLICY "Users can insert their own wallet"
     ON wallets FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own wallet
+CREATE POLICY "Users can update their own wallet"
+    ON wallets FOR UPDATE
+    USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 ```
 
@@ -140,8 +154,10 @@ CREATE POLICY "Anyone can read app config"
 For optimal query performance:
 
 ```sql
+CREATE INDEX idx_profiles_phone_number ON profiles(phone_number);
 CREATE INDEX idx_transactions_user_id ON transactions(user_id);
 CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
+CREATE INDEX idx_transactions_type ON transactions(type);
 CREATE INDEX idx_wallets_user_id ON wallets(user_id);
 ```
 
@@ -220,6 +236,15 @@ ON CONFLICT (key) DO NOTHING;
 ### Add Test User Data
 
 ```sql
+-- Add a test user with phone number
+-- Note: Password should be hashed using bcrypt
+INSERT INTO profiles (user_id, phone_number, password)
+VALUES (
+    'your-user-uuid',
+    '+1234567890',
+    '$2a$12$example.hashed.password.here'
+);
+
 -- Add a test earning for a user
 INSERT INTO transactions (user_id, type, amount, status, description)
 VALUES ('your-user-uuid', 'earning', 100.00, 'approved', 'Test earning');
@@ -256,6 +281,54 @@ WHERE user_id = (SELECT user_id FROM transactions WHERE id = 'transaction-uuid')
 3. Sensitive operations (withdrawal approvals) should be handled by backend functions
 4. Consider adding rate limiting for transaction creation
 5. Monitor for suspicious patterns (multiple rapid withdrawals, etc.)
+6. Passwords are stored as bcrypt hashes with cost factor 12
+
+## Database Management
+
+### Factory Reset
+
+For testing and development, you can completely reset the database using the factory reset script located at `database/sql/factory_reset.sql`. This script will:
+
+- Drop all policies
+- Drop all triggers
+- Drop all functions
+- Drop all tables
+- Drop all sequences
+- Drop all views
+- Drop all indexes
+
+**Warning**: This is destructive and will delete ALL data. Only use in development/testing environments.
+
+```bash
+# Run factory reset (in Supabase SQL Editor)
+# Execute: database/sql/factory_reset.sql
+```
+
+### Complete Setup
+
+After a factory reset or for initial setup, use the complete setup script at `database/sql/complete_setup.sql`. This script will:
+
+- Create all tables with the new phone-based schema
+- Enable Row Level Security
+- Create all RLS policies
+- Create indexes for performance
+- Create database functions and triggers
+- Insert default app configuration
+
+```bash
+# Run complete setup (in Supabase SQL Editor)
+# Execute: database/sql/complete_setup.sql
+```
+
+### Test Queries
+
+A comprehensive set of test queries is available at `database/sql/test_queries.sql` for:
+
+- Manually inserting test users with phone numbers
+- Adding test earnings and withdrawals
+- Querying user data
+- Verifying database structure
+- Searching by phone number
 
 ## Maintenance
 
