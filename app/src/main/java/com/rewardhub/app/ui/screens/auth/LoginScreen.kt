@@ -3,8 +3,8 @@ package com.rewardhub.app.ui.screens.auth
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +19,7 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onLoginSuccess: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
     
@@ -53,13 +53,14 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(48.dp))
         
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            value = phoneNumber,
+            onValueChange = { phoneNumber = it },
+            label = { Text("Phone Number") },
+            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            placeholder = { Text("+1234567890") }
         )
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -87,9 +88,9 @@ fun LoginScreen(
         }
         
         Button(
-            onClick = { viewModel.signIn(email, password) },
+            onClick = { viewModel.signIn(phoneNumber, password) },
             modifier = Modifier.fillMaxWidth(),
-            enabled = authState !is AuthState.Loading && email.isNotBlank() && password.isNotBlank()
+            enabled = authState !is AuthState.Loading && phoneNumber.isNotBlank() && password.isNotBlank()
         ) {
             if (authState is AuthState.Loading) {
                 CircularProgressIndicator(

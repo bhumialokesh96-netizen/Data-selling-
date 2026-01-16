@@ -22,10 +22,10 @@ class AuthViewModel(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
     
-    fun signIn(email: String, password: String) {
+    fun signIn(phoneNumber: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = repository.signIn(email, password)
+            val result = repository.signIn(phoneNumber, password)
             _authState.value = if (result.isSuccess) {
                 AuthState.Success(result.getOrNull()!!)
             } else {
@@ -34,10 +34,10 @@ class AuthViewModel(
         }
     }
     
-    fun signUp(email: String, password: String) {
+    fun signUp(phoneNumber: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = repository.signUp(email, password)
+            val result = repository.signUp(phoneNumber, password)
             _authState.value = if (result.isSuccess) {
                 AuthState.Success(result.getOrNull()!!)
             } else {

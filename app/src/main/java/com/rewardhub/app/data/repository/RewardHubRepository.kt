@@ -12,20 +12,20 @@ class RewardHubRepository(
 ) {
     
     // Authentication
-    suspend fun signUp(email: String, password: String): Result<String> {
-        val result = supabaseDataSource.signUp(email, password)
+    suspend fun signUp(phoneNumber: String, password: String): Result<String> {
+        val result = supabaseDataSource.signUp(phoneNumber, password)
         if (result.isSuccess) {
             val userId = result.getOrNull()!!
-            userPreferencesDataStore.saveUserInfo(userId, email)
+            userPreferencesDataStore.saveUserInfo(userId, phoneNumber)
         }
         return result
     }
     
-    suspend fun signIn(email: String, password: String): Result<String> {
-        val result = supabaseDataSource.signIn(email, password)
+    suspend fun signIn(phoneNumber: String, password: String): Result<String> {
+        val result = supabaseDataSource.signIn(phoneNumber, password)
         if (result.isSuccess) {
             val userId = result.getOrNull()!!
-            userPreferencesDataStore.saveUserInfo(userId, email)
+            userPreferencesDataStore.saveUserInfo(userId, phoneNumber)
         }
         return result
     }
@@ -40,7 +40,7 @@ class RewardHubRepository(
     
     fun getUserId(): Flow<String?> = userPreferencesDataStore.userId
     
-    fun getUserEmail(): Flow<String?> = userPreferencesDataStore.userEmail
+    fun getUserPhoneNumber(): Flow<String?> = userPreferencesDataStore.userEmail
     
     // Wallet Operations
     suspend fun getWallet(userId: String): Result<Wallet> {
