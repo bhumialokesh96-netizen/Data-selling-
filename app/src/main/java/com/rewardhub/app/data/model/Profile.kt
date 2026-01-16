@@ -9,6 +9,7 @@ data class Profile(
     val userId: String,
     @SerialName("phone_number")
     val phoneNumber: String,
+    @SerialName("password")
     val password: String,
     @SerialName("created_at")
     val createdAt: String? = null

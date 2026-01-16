@@ -15,7 +15,7 @@ INSERT INTO profiles (user_id, phone_number, password)
 VALUES (
     'your-user-uuid',
     '+1234567890',
-    '$2a$10$example.hashed.password.here' -- Replace with actual bcrypt hash
+    '$2a$12$example.hashed.password.here' -- Replace with actual bcrypt hash (cost factor 12)
 );
 
 -- Insert test wallet
