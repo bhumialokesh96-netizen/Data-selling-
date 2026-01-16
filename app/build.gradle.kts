@@ -98,6 +98,9 @@ dependencies {
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     
+    // BCrypt for password hashing
+    implementation("at.favre.lib:bcrypt:0.10.2")
+    
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

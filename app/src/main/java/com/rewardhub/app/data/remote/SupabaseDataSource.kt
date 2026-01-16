@@ -1,5 +1,6 @@
 package com.rewardhub.app.data.remote
 
+import at.favre.lib.crypto.bcrypt.BCrypt
 import com.rewardhub.app.data.model.Profile
 import com.rewardhub.app.data.model.Transaction
 import com.rewardhub.app.data.model.Wallet
@@ -14,18 +15,25 @@ class SupabaseDataSource {
     private val client = SupabaseConfig.client
     
     // Authentication
-    suspend fun signUp(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun signUp(phoneNumber: String, password: String): Result<String> = withContext(Dispatchers.IO) {
         try {
+            // Hash the password
+            val hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray())
+            
+            // Use phone number as email for Supabase auth (workaround)
+            // Format: phone@rewardhub.app
+            val authEmail = "${phoneNumber.replace("+", "").replace(" ", "")}@rewardhub.app"
+            
             val user = client.auth.signUpWith(Email) {
-                this.email = email
+                this.email = authEmail
                 this.password = password
             }
             
             val userId = user?.id ?: return@withContext Result.failure(Exception("User ID not found"))
             
-            // Create profile
+            // Create profile with phone number and hashed password
             client.from("profiles").insert(
-                Profile(userId = userId, email = email)
+                Profile(userId = userId, phoneNumber = phoneNumber, password = hashedPassword)
             )
             
             // Create wallet
@@ -39,10 +47,13 @@ class SupabaseDataSource {
         }
     }
     
-    suspend fun signIn(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun signIn(phoneNumber: String, password: String): Result<String> = withContext(Dispatchers.IO) {
         try {
+            // Use phone number as email for Supabase auth (workaround)
+            val authEmail = "${phoneNumber.replace("+", "").replace(" ", "")}@rewardhub.app"
+            
             client.auth.signInWith(Email) {
-                this.email = email
+                this.email = authEmail
                 this.password = password
             }
             val userId = client.auth.currentUserOrNull()?.id ?: return@withContext Result.failure(Exception("User ID not found"))

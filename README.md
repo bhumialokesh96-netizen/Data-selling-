@@ -5,7 +5,8 @@ RewardHub is a modern Android application designed for real-time earnings and re
 ## Features
 
 ### 🎯 Core Functionality
-- **User Authentication**: Simple registration and login system using Supabase Auth
+- **User Authentication**: Simple registration and login system using phone numbers and passwords
+- **Secure Password Storage**: Passwords are hashed using BCrypt before storage
 - **Real-time Wallet**: Track your balance, earnings, and withdrawals in real-time
 - **Withdrawal System**: 
   - First withdrawal of ₹10 is free and auto-approved
@@ -16,7 +17,8 @@ RewardHub is a modern Android application designed for real-time earnings and re
 
 ### 🔒 Security
 - Row Level Security (RLS) on Supabase database
-- Secure authentication with email/password
+- Secure authentication with phone numbers and passwords
+- BCrypt password hashing with cost factor 12
 - Backend-driven business logic for wallet operations
 - Rate limiting and abuse detection capabilities
 
@@ -52,13 +54,25 @@ cd Data-selling-
 
 #### 2.2 Create Database Tables
 
-Run the following SQL in your Supabase SQL Editor:
+Run the complete setup SQL script in your Supabase SQL Editor. This script is available at `database/sql/complete_setup.sql` and includes:
+
+- Tables with phone-based authentication schema
+- Row Level Security policies
+- Indexes for performance
+- Functions and triggers for business logic
+- Default app configuration
+
+Alternatively, you can run the SQL manually:
 
 ```sql
--- Create profiles table
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create profiles table with phone number and password
 CREATE TABLE profiles (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT NOT NULL,
+    phone_number TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -83,7 +97,7 @@ CREATE TABLE transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create app_config table (for future configurations)
+-- Create app_config table
 CREATE TABLE app_config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -105,6 +119,11 @@ CREATE POLICY "Users can insert their own profile"
     ON profiles FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update their own profile"
+    ON profiles FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
 -- RLS Policies for wallets
 CREATE POLICY "Users can view their own wallet"
     ON wallets FOR SELECT
@@ -112,6 +131,11 @@ CREATE POLICY "Users can view their own wallet"
 
 CREATE POLICY "Users can insert their own wallet"
     ON wallets FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own wallet"
+    ON wallets FOR UPDATE
+    USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
 -- RLS Policies for transactions
@@ -129,12 +153,18 @@ CREATE POLICY "Anyone can read app config"
     USING (true);
 
 -- Create indexes for better performance
+CREATE INDEX idx_profiles_phone_number ON profiles(phone_number);
 CREATE INDEX idx_transactions_user_id ON transactions(user_id);
 CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
+CREATE INDEX idx_transactions_type ON transactions(type);
 CREATE INDEX idx_wallets_user_id ON wallets(user_id);
 ```
 
+**For complete setup including triggers and functions, see** `database/sql/complete_setup.sql`
+
 #### 2.3 Set Up Database Functions (Optional - for auto-processing)
+
+The complete setup script (`database/sql/complete_setup.sql`) already includes these functions. If you need to add them separately:
 
 ```sql
 -- Function to process first withdrawal automatically
@@ -275,11 +305,13 @@ RewardHub/
 1. **Registration**:
    - Open the app
    - Click "Sign Up"
-   - Enter email and password
+   - Enter your phone number (format: +1234567890)
+   - Enter and confirm password
    - Click "Sign Up" button
 
 2. **Login**:
-   - Enter registered email and password
+   - Enter registered phone number
+   - Enter password
    - Click "Sign In"
 
 3. **View Wallet**:
@@ -299,6 +331,20 @@ RewardHub/
 
 ### For Developers
 
+#### Database Management
+
+**Factory Reset (Development/Testing Only)**
+
+To completely reset the database, run `database/sql/factory_reset.sql` in Supabase SQL Editor. This will drop all tables, policies, functions, and triggers.
+
+**Complete Setup**
+
+After factory reset or for initial setup, run `database/sql/complete_setup.sql` to recreate the entire database schema with phone-based authentication.
+
+**Test Queries**
+
+Use `database/sql/test_queries.sql` for manual testing and verification of database functionality.
+
 #### Adding Test Earnings
 
 You can add test earnings directly through Supabase:
@@ -307,6 +353,18 @@ You can add test earnings directly through Supabase:
 -- Add a test earning
 INSERT INTO transactions (user_id, type, amount, status, description)
 VALUES ('user-uuid-here', 'earning', 100.00, 'approved', 'Test earning');
+```
+
+#### Creating Test Users
+
+```sql
+-- Add test user profile (password should be bcrypt hashed)
+INSERT INTO profiles (user_id, phone_number, password)
+VALUES (
+    'user-uuid-here',
+    '+1234567890',
+    '$2a$12$hashed.password.here'
+);
 ```
 
 #### Manually Approving Withdrawals
@@ -329,6 +387,8 @@ WHERE user_id = 'user-uuid';
 
 - Never commit your Supabase credentials to version control
 - Use environment variables or secure configuration for production
+- Passwords are hashed using BCrypt with cost factor 12
+- Phone numbers are stored with country code prefix (e.g., +1234567890)
 - Implement rate limiting for API calls
 - Regularly update dependencies to patch security vulnerabilities
 - Monitor suspicious activity through Supabase dashboard
@@ -350,6 +410,8 @@ WHERE user_id = 'user-uuid';
    - Check Supabase Auth settings
    - Verify email confirmation is disabled (for testing)
    - Check database tables are created correctly
+   - Ensure phone number is in correct format (+1234567890)
+   - Verify password meets minimum requirements
 
 ## Future Enhancements
 
