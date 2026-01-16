@@ -6,6 +6,7 @@ import com.rewardhub.app.data.model.Wallet
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -15,12 +16,12 @@ class SupabaseDataSource {
     // Authentication
     suspend fun signUp(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val result = client.auth.signUpWith(Email) {
+            val user = client.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
             }
             
-            val userId = result.user?.id ?: return@withContext Result.failure(Exception("User ID not found"))
+            val userId = user?.id ?: return@withContext Result.failure(Exception("User ID not found"))
             
             // Create profile
             client.from("profiles").insert(
@@ -40,11 +41,11 @@ class SupabaseDataSource {
     
     suspend fun signIn(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val result = client.auth.signInWith(Email) {
+            client.auth.signInWith(Email) {
                 this.email = email
                 this.password = password
             }
-            val userId = result.user?.id ?: return@withContext Result.failure(Exception("User ID not found"))
+            val userId = client.auth.currentUserOrNull()?.id ?: return@withContext Result.failure(Exception("User ID not found"))
             Result.success(userId)
         } catch (e: Exception) {
             Result.failure(e)
@@ -88,7 +89,7 @@ class SupabaseDataSource {
                     filter {
                         eq("user_id", userId)
                     }
-                    order("created_at", ascending = false)
+                    order("created_at", order = Order.DESCENDING)
                 }
                 .decodeList<Transaction>()
             Result.success(transactions)
