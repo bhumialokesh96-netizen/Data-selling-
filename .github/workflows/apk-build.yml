@@ -35,11 +35,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-cache-
 
-      # Step 4: Build the APK
+      # Step 4: Debug Directory
+      - name: List files
+        run: ls -la
+
+      # Step 5: Build the APK
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      # Step 5: Upload the APK Artifact
+      # Step 6: Upload the APK Artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
