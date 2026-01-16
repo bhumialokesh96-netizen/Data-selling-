@@ -1,0 +1,142 @@
+package com.rewardhub.app.data.remote
+
+import com.rewardhub.app.data.model.Profile
+import com.rewardhub.app.data.model.Transaction
+import com.rewardhub.app.data.model.Wallet
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class SupabaseDataSource {
+    private val client = SupabaseConfig.client
+    
+    // Authentication
+    suspend fun signUp(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val result = client.auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            
+            val userId = result.user?.id ?: return@withContext Result.failure(Exception("User ID not found"))
+            
+            // Create profile
+            client.from("profiles").insert(
+                Profile(userId = userId, email = email)
+            )
+            
+            // Create wallet
+            client.from("wallets").insert(
+                Wallet(userId = userId)
+            )
+            
+            Result.success(userId)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun signIn(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val result = client.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            val userId = result.user?.id ?: return@withContext Result.failure(Exception("User ID not found"))
+            Result.success(userId)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun signOut(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            client.auth.signOut()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun getCurrentUserId(): String? {
+        return client.auth.currentUserOrNull()?.id
+    }
+    
+    // Wallet Operations
+    suspend fun getWallet(userId: String): Result<Wallet> = withContext(Dispatchers.IO) {
+        try {
+            val wallet = client.from("wallets")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                    }
+                }
+                .decodeSingle<Wallet>()
+            Result.success(wallet)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Transaction Operations
+    suspend fun getTransactions(userId: String): Result<List<Transaction>> = withContext(Dispatchers.IO) {
+        try {
+            val transactions = client.from("transactions")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                    }
+                    order("created_at", ascending = false)
+                }
+                .decodeList<Transaction>()
+            Result.success(transactions)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun createWithdrawal(userId: String, amount: Double): Result<Transaction> = withContext(Dispatchers.IO) {
+        try {
+            val transaction = Transaction(
+                userId = userId,
+                type = "withdrawal",
+                amount = amount,
+                status = "pending"
+            )
+            
+            val result = client.from("transactions")
+                .insert(transaction) {
+                    select()
+                }
+                .decodeSingle<Transaction>()
+            
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun addEarning(userId: String, amount: Double, description: String): Result<Transaction> = withContext(Dispatchers.IO) {
+        try {
+            val transaction = Transaction(
+                userId = userId,
+                type = "earning",
+                amount = amount,
+                status = "approved",
+                description = description
+            )
+            
+            val result = client.from("transactions")
+                .insert(transaction) {
+                    select()
+                }
+                .decodeSingle<Transaction>()
+            
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
